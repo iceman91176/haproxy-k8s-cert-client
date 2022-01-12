@@ -1,0 +1,14 @@
+[Unit]
+Description=cert-sync
+Documentation=https://github.com/iceman91176/haproxy-k8s-cert-client
+After=network.target
+
+[Service]
+Type=simple
+User=haproxy
+ExecStart=/usr/bin/node /usr/src/cert-sync/server.js
+WorkingDirectory=/usr/src/cert-sync
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
