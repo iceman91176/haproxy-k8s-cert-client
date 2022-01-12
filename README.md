@@ -86,7 +86,7 @@ chown -R haproxy:haproxy /usr/src/cert-sync/
 ```
 ## Installation als systemd unit
 ```
-cp /usr/src/cert-sync/cert-sync.service /usr/lib/systemd/system/
+cp /usr/src/cert-sync/systemd/cert-sync.service /usr/lib/systemd/system/
 systemctl daemon-reload
 systemctl edit cert-sync
 ```
@@ -106,4 +106,18 @@ Environment=HAPROXY_CERTFILE=/tmp/cert.pem
 systemctl enable cert-sync
 systemctl start cert-sync
 ```
+
+## Auto-reload HA-Proxy
+Kann mit einem systemd-watcher erfolgen. Bei Bedarf die Datei systemd/cert-watcher.path anpassen (Pfad zur Zertifikatsdatei)
+
+```
+cp cert-watcher.* /usr/lib/systemd/system
+systemctl daemon-reload
+systemctl enable cert-watcher.{path,service}
+systemctl start cert-watcher.{path,service}
+```
+
+Nun wird jedesmal wenn sich die Zertifikatsdatei ändert Haproxy neu gestartet
+
+
 

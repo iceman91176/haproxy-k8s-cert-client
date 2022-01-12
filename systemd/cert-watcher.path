@@ -1,0 +1,6 @@
+[Path]
+Unit=cert-watcher.service
+PathChanged=/etc/haproxy/certs/s3.pem
+
+[Install]
+WantedBy=multi-user.target
