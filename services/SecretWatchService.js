@@ -17,7 +17,7 @@ class SecretWatchService {
         let k8sApi = kc.makeApiClient(k8s.CoreV1Api);
 
         let path = '/api/v1/namespaces/'+this.namespace+'/secrets';
-        let watch = new k8s.Watch(kc);
+        //let watch = new k8s.Watch(kc);
         
         //const listFn = () => k8sApi.listNamespacedSecret(this.namespace);
         const listFn = () => k8sApi.listNamespacedSecret(this.namespace,"true",undefined,undefined,"metadata.name="+this.secretName);
