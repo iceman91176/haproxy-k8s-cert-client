@@ -111,7 +111,7 @@ systemctl start cert-sync
 Kann mit einem systemd-watcher erfolgen. Bei Bedarf die Datei systemd/cert-watcher.path anpassen (Pfad zur Zertifikatsdatei)
 
 ```
-cp cert-watcher.* /usr/lib/systemd/system
+cp systemd/cert-watcher.* /usr/lib/systemd/system
 systemctl daemon-reload
 systemctl enable cert-watcher.{path,service}
 systemctl start cert-watcher.{path,service}
