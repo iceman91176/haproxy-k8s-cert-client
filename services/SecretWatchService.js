@@ -10,40 +10,43 @@ class SecretWatchService {
 
     constructor(){
 
+        //default idle timeout is 30 minutes
+        const defaultTimeout = 30 * 60 * 1000;
         this.namespace = process.env.K8S_NAMESPACE;
         this.secretName = process.env.CERT_SECRET;
         this.resourceVersion = null;
+        this.idleTimeout = process.env.K8S_IDLE_TIMEOUT || defaultTimeout;
+        this.timer = null;        
 
         let k8sApi = kc.makeApiClient(k8s.CoreV1Api);
 
         let path = '/api/v1/namespaces/'+this.namespace+'/secrets';
-        //let watch = new k8s.Watch(kc);
+
+        const listFn = () => k8sApi.listNamespacedSecret(this.namespace,"true",undefined,undefined,"metadata.name="+this.secretName
+            ,undefined,undefined,undefined,undefined,300
+        );
         
-        //const listFn = () => k8sApi.listNamespacedSecret(this.namespace);
-        const listFn = () => k8sApi.listNamespacedSecret(this.namespace,"true",undefined,undefined,"metadata.name="+this.secretName);
-        
-        let informer = k8s.makeInformer(kc,path,listFn);
-        informer.on('add', (obj) => { this.processInformEvent("ADD",obj) });
-        informer.on('update', (obj) => { this.processInformEvent("UPDATE",obj) });
-        informer.on('error', (err) => {
-            logger.error(err);
+        this.informer = k8s.makeInformer(kc,path,listFn);
+        let self = this;
+        this.informer.on('add', (obj) => { this.processInformEvent("ADD",obj) });
+        this.informer.on('update', (obj) => { this.processInformEvent("UPDATE",obj) });
+        this.informer.on('error', (err) => {
+            if (err.hasOwnProperty('message')){
+                if (err.message != 'aborted'){
+                    logger.error(err);
+                }                
+            }
             // Restart informer after 5sec
             setTimeout(() => {
-                informer.start();
+                logger.info("Restarting watcher"); 
+                self._startWatcher();
             }, 5000);
         });
-        informer.start().then(() => {
-            logger.info('Initialized watching ' + this.namespace+"/"+this.secretName + " for changes");
-        });
-
+        this._startWatcher();
     }
 
     processInformEvent(event,object){
-
-        //logger.info(event + "  " + object.metadata.name);
-
         if (object.metadata.name == this.secretName ){
-            //logger.info(object.metadata.resourceVersion + " vs " + this.resourceVersion);
 
             if (this.resourceVersion != object.metadata.resourceVersion){
                 this.resourceVersion = object.metadata.resourceVersion;
@@ -56,6 +59,7 @@ class SecretWatchService {
                 }
             }
         }
+        this._setIdleTimeout();
     }
 
     decodeCertData(data){
@@ -66,6 +70,42 @@ class SecretWatchService {
         return str;
 
     }
+
+    /**
+     * This is not really working to well. Stopping the watcher aborts the session, which triggers
+     * the error handler, which starts the informer again
+     */
+    _restartWatcher(){
+        this.informer.stop().then(() => {
+            logger.info('Watcher restart triggered after idle-timeout was reached');
+        });
+    }
+
+    _startWatcher(){
+        this.informer.start().then(() => {
+            logger.info('Initialized watching ' + this.namespace+"/"+this.secretName + " for changes");
+        });
+        this._setIdleTimeout();
+    }
+
+    // Clear idle/restart timer.
+    _clearTimer() {
+        if (this.timer) {
+            clearTimeout(this.timer);
+            this.timer = undefined;
+        }
+    }
+
+    _setIdleTimeout() {
+        if (this.idleTimeout > 0) {
+            //logger.info('Setting timeout to ' + this.idleTimeout);
+            this._clearTimer();
+            this.timer = setTimeout(() => {
+                this._restartWatcher();
+            }, this.idleTimeout);
+        }
+    }
+        
 
 }
 
